@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEF - Escale seu Time</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#0a0a0a; color:#fff; min-height:100vh; }
+
+.header { background:#111; border-bottom:2px solid #c9a227; padding:12px 18px; display:flex; align-items:center; gap:12px; }
+.header-text h1 { font-size:18px; font-weight:900; color:#c9a227; letter-spacing:2px; text-transform:uppercase; }
+.header-text p { font-size:10px; color:#888; letter-spacing:1px; text-transform:uppercase; }
+.screen { display:none; padding:16px; }
+.screen.active { display:block; }
+
+#screen-intro { text-align:center; padding:28px 20px; }
+.flag-strip { display:flex; height:7px; border-radius:4px; overflow:hidden; margin-bottom:22px; }
+.fg{background:#009c3b;flex:1} .fy{background:#ffdf00;flex:1} .fb{background:#002776;flex:1}
+.btn-start { background:linear-gradient(135deg,#c9a227,#a07c1a); color:#111; border:none; padding:14px 40px; font-size:16px; font-weight:900; border-radius:30px; cursor:pointer; text-transform:uppercase; letter-spacing:2px; width:100%; max-width:300px; }
+
+.progress-bar { background:#222; border-radius:20px; height:7px; margin-bottom:8px; overflow:hidden; }
+.progress-fill { background:linear-gradient(90deg,#009c3b,#ffdf00,#c9a227); height:100%; border-radius:20px; transition:width 0.4s; }
+.progress-text { font-size:11px; color:#888; text-align:right; margin-bottom:12px; }
+.field { background:linear-gradient(180deg,#0d5c2e,#0f6b34 40%,#0d5c2e); border:2px solid #1a8a40; border-radius:10px; padding:10px; width:100%; max-width:360px; margin:0 auto; }
+.field-inner { border:2px solid rgba(255,255,255,0.2); border-radius:6px; padding:8px 6px; position:relative; }
+.mid-line { position:absolute; left:6px; right:6px; top:50%; height:1px; background:rgba(255,255,255,0.18); }
+.center-circle { width:44px; height:44px; border:1.5px solid rgba(255,255,255,0.18); border-radius:50%; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); }
+.row { display:flex; justify-content:center; gap:10px; margin:6px 0; }
+.player-slot { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; }
+.player-circle { width:46px; height:46px; border-radius:50%; border:2px solid #c9a227; background:#0d3d20; display:flex; align-items:center; justify-content:center; font-size:18px; transition:all 0.2s; overflow:hidden; }
+.player-circle:hover { border-color:#ffdf00; transform:scale(1.1); }
+.player-circle.filled { border-color:#ffdf00; }
+.player-circle img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.player-name { font-size:9px; color:#ffdf00; font-weight:700; max-width:52px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.player-pos { font-size:8px; color:#aaa; }
+
+.modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:100; align-items:center; justify-content:center; padding:16px; }
+.modal.open { display:flex; }
+.modal-content { background:#161616; border:2px solid #c9a227; border-radius:16px; padding:22px; width:100%; max-width:340px; max-height:90vh; overflow-y:auto; }
+.pos-badge { display:inline-block; background:#c9a227; color:#111; font-size:11px; font-weight:900; padding:4px 14px; border-radius:20px; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.form-group { margin-bottom:14px; }
+.form-group label { display:block; font-size:11px; color:#c9a227; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; font-weight:700; }
+.form-group input { width:100%; background:#1a1a1a; border:1.5px solid #333; border-radius:8px; padding:11px 13px; color:#fff; font-size:14px; outline:none; }
+.form-group input:focus { border-color:#c9a227; }
+.photo-area { border:2px dashed #333; border-radius:10px; padding:18px; text-align:center; cursor:pointer; transition:border-color 0.2s; }
+.photo-area:hover,.photo-area.has-photo { border-color:#c9a227; border-style:solid; }
+.photo-preview-thumb { width:70px; height:70px; border-radius:50%; object-fit:cover; border:3px solid #c9a227; margin:0 auto 6px; display:block; }
+.btn-confirm { background:linear-gradient(135deg,#c9a227,#a07c1a); color:#111; border:none; padding:13px; font-size:14px; font-weight:900; border-radius:10px; cursor:pointer; width:100%; text-transform:uppercase; letter-spacing:1px; margin-top:6px; }
+.btn-back { background:transparent; border:1.5px solid #333; color:#888; padding:11px; font-size:13px; border-radius:10px; cursor:pointer; width:100%; margin-top:8px; }
+#file-input { display:none; }
+
+.panini-card { width:210px; border-radius:14px; overflow:hidden; position:relative; box-shadow:0 12px 40px rgba(0,0,0,0.8); font-family:'Arial Black','Impact',sans-serif; background:#3dd6d0; flex-shrink:0; }
+.panini-bg { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+.blob1 { position:absolute; top:-20px; left:-30px; width:130px; height:160px; background:#1db954; border-radius:60% 40% 55% 45% / 50% 60% 40% 50%; opacity:0.85; }
+.blob2 { position:absolute; top:30px; left:-10px; width:90px; height:110px; background:#17a248; border-radius:40% 60% 50% 50% / 60% 40% 60% 40%; opacity:0.7; }
+.blob3 { position:absolute; top:10px; left:10px; width:60px; height:80px; background:#15943f; border-radius:50% 50% 60% 40% / 40% 60% 50% 50%; opacity:0.6; }
+.panini-yellow-bar { position:absolute; top:52px; left:30px; right:40px; height:28px; background:#ffdf00; border-radius:4px; z-index:2; }
+.panini-fifa { position:absolute; top:10px; right:10px; z-index:10; text-align:center; line-height:1; }
+.panini-fifa .fifa-icon { font-size:22px; font-weight:900; color:#fff; text-shadow:0 2px 4px rgba(0,0,0,0.3); display:block; }
+.panini-fifa .fifa-text { font-size:8px; font-weight:900; color:#fff; letter-spacing:1px; }
+.panini-flag { position:absolute; right:8px; top:50%; transform:translateY(-50%); z-index:10; width:32px; height:32px; border-radius:50%; border:2px solid #fff; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.4); background:#009c3b; display:flex; align-items:center; justify-content:center; font-size:20px; }
+.panini-deco-letters { position:absolute; right:6px; bottom:80px; z-index:3; display:flex; flex-direction:column; align-items:center; gap:0; line-height:1; }
+.panini-deco-letters span { font-size:22px; font-weight:900; color:rgba(255,255,255,0.25); letter-spacing:-2px; display:block; line-height:0.9; }
+.panini-photo { position:relative; z-index:5; height:220px; overflow:hidden; display:flex; align-items:flex-end; justify-content:center; }
+.panini-photo img { width:100%; height:100%; object-fit:cover; object-position:top center; display:block; }
+.panini-no-photo { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:70px; background:linear-gradient(180deg,#2ac8c0,#1aa8a0); }
+.panini-name-bar { position:relative; z-index:10; background:#2bbdb6; margin:0 10px; border-radius:8px; padding:8px 12px; text-align:center; transform:translateY(-16px); box-shadow:0 4px 12px rgba(0,0,0,0.3); }
+.panini-name-bar .player-first { font-size:17px; font-weight:900; color:#fff; letter-spacing:2px; text-transform:uppercase; line-height:1; }
+.panini-bottom { background:#1a1a1a; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; margin-top:-10px; }
+.panini-club { font-size:9px; font-weight:700; color:#ccc; text-transform:uppercase; letter-spacing:0.5px; }
+.panini-logo-box { background:#e8000d; border-radius:4px; padding:2px 6px; display:flex; align-items:center; gap:3px; }
+.panini-logo-box span { font-size:9px; font-weight:900; color:#fff; letter-spacing:1px; text-transform:uppercase; }
+
+.sticker-wrap { display:flex; justify-content:center; margin-bottom:20px; }
+.lucky-box { background:linear-gradient(135deg,#002776,#003db5); border:2px solid #ffdf00; border-radius:12px; padding:16px; max-width:220px; margin:0 auto 18px; text-align:center; }
+.lucky-label { font-size:10px; color:#ffdf00; letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
+.lucky-number { font-size:38px; font-weight:900; color:#fff; letter-spacing:6px; }
+.lucky-sub { font-size:10px; color:rgba(255,255,255,0.5); margin-top:3px; }
+.btn-next { background:linear-gradient(135deg,#009c3b,#007a2e); color:#fff; border:none; padding:13px; font-size:14px; font-weight:900; border-radius:10px; cursor:pointer; width:100%; text-transform:uppercase; letter-spacing:1px; }
+.btn-field { background:transparent; border:1.5px solid #c9a227; color:#c9a227; padding:11px; font-size:13px; border-radius:10px; cursor:pointer; width:100%; margin-top:8px; }
+
+.complete-title { font-size:22px; font-weight:900; color:#c9a227; text-transform:uppercase; letter-spacing:2px; margin-bottom:4px; text-align:center; }
+.complete-sub { font-size:13px; color:#888; margin-bottom:18px; text-align:center; }
+.team-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px; }
+.mini-panini { border-radius:8px; overflow:hidden; background:#3dd6d0; position:relative; box-shadow:0 3px 10px rgba(0,0,0,0.5); }
+.mini-panini-photo { height:72px; overflow:hidden; position:relative; background:#2ac8c0; }
+.mini-panini-photo img { width:100%;height:100%;object-fit:cover;object-position:top; }
+.mini-panini-photo .np { width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px; }
+.mini-blob { position:absolute;top:-8px;left:-10px;width:48px;height:60px;background:#1db954;border-radius:60% 40% 55% 45% / 50% 60% 40% 50%;opacity:0.7; }
+.mini-name-bar { background:#2bbdb6; padding:4px 6px; text-align:center; }
+.mini-name-bar span { font-size:8px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:1px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mini-bottom { background:#1a1a1a; padding:3px 6px; display:flex; align-items:center; justify-content:space-between; }
+.mini-bottom span { font-size:7px; color:#aaa; text-transform:uppercase; }
+.mini-bottom .pr { background:#e8000d; border-radius:2px; padding:1px 3px; font-size:6px; font-weight:900; color:#fff; }
+.mega-lucky { background:linear-gradient(135deg,#c9a227,#a07c1a); border-radius:14px; padding:18px; margin-bottom:14px; text-align:center; }
+.mega-lucky-label { font-size:11px; color:#111; letter-spacing:2px; text-transform:uppercase; font-weight:900; margin-bottom:4px; }
+.mega-lucky-number { font-size:46px; font-weight:900; color:#111; letter-spacing:8px; }
+.mega-lucky-sub { font-size:10px; color:rgba(0,0,0,0.6); margin-top:3px; }
+.share-btn { background:#009c3b; color:#fff; border:none; padding:13px; font-size:14px; font-weight:900; border-radius:10px; cursor:pointer; width:100%; text-transform:uppercase; letter-spacing:1px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <svg width="44" height="50" viewBox="0 0 54 60" fill="none">
+    <path d="M27 2L4 12V32C4 45 15 55 27 58C39 55 50 45 50 32V12L27 2Z" fill="#111" stroke="#c9a227" stroke-width="2.5"/>
+    <text x="27" y="24" text-anchor="middle" fill="#c9a227" font-size="9" font-weight="900" letter-spacing="0.5">CEF</text>
+    <text x="27" y="37" text-anchor="middle" fill="#ffdf00" font-size="13">⚽</text>
+  </svg>
+  <div class="header-text">
+    <h1>CEF</h1>
+    <p>Comissão Escolta de Futebol</p>
+  </div>
+</div>
+
+<!-- INTRO -->
+<div id="screen-intro" class="screen active">
+  <div class="flag-strip"><div class="fg"></div><div class="fy"></div><div class="fb"></div></div>
+  <p style="font-size:26px;font-weight:900;color:#c9a227;text-transform:uppercase;letter-spacing:3px;margin-bottom:6px;text-align:center;">Escale seu Time</p>
+  <p style="font-size:13px;color:#888;margin-bottom:16px;text-align:center;">Monte seu 11 inicial e concorra ao sorteio!</p>
+  <div style="background:#161616;border:1.5px solid #333;border-radius:10px;padding:14px;max-width:320px;margin:0 auto 20px;">
+    <label style="display:block;font-size:11px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700;">Seu nome (associado)</label>
+    <input type="text" id="input-associado" placeholder="Ex: Carlos Silva" maxlength="40" style="width:100%;background:#1a1a1a;border:1.5px solid #333;border-radius:8px;padding:11px 13px;color:#fff;font-size:14px;outline:none;">
+  </div>
+  <div style="display:flex;justify-content:center;margin-bottom:20px;">
+    <div class="panini-card" style="width:130px;pointer-events:none;">
+      <div class="panini-bg"><div class="blob1" style="width:80px;height:100px;"></div><div class="blob2" style="width:55px;height:70px;"></div></div>
+      <div class="panini-yellow-bar" style="top:32px;left:18px;right:25px;height:18px;"></div>
+      <div class="panini-fifa" style="top:6px;right:6px;"><span class="fifa-icon" style="font-size:14px;">⚽</span><span class="fifa-text" style="font-size:6px;">CEF</span></div>
+      <div class="panini-photo" style="height:130px;"><div class="panini-no-photo" style="font-size:44px;">🤩</div></div>
+      <div class="panini-name-bar" style="margin:0 6px;padding:5px 8px;transform:translateY(-10px);"><div class="player-first" style="font-size:11px;">SEU AMIGO</div></div>
+      <div class="panini-bottom" style="margin-top:-6px;padding:4px 6px;"><span class="panini-club" style="font-size:7px;">Escolta FC</span><div class="panini-logo-box" style="padding:1px 4px;"><span style="font-size:7px;">CEF</span></div></div>
+    </div>
+  </div>
+  <p style="font-size:13px;color:#888;margin-bottom:22px;line-height:1.7;text-align:center;">Indique amigos para cada posição.<br>Cada um vira uma <strong style="color:#c9a227">figurinha Panini</strong>!<br>Complete o time e ganhe seu <strong style="color:#ffdf00">número da sorte</strong>.</p>
+  <div style="text-align:center;"><button class="btn-start" onclick="showField()">⚽ Montar meu time</button><p style="font-size:10px;color:#444;margin-top:14px;">Escolta Proteção Veicular</p></div>
+</div>
+
+<!-- CAMPO -->
+<div id="screen-field" class="screen">
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  <div class="progress-text"><span id="progress-count">0</span>/11 escalados</div>
+  <div class="field">
+    <div class="field-inner">
+      <div class="mid-line"></div><div class="center-circle"></div>
+      <div class="row">
+        <div class="player-slot" onclick="openForm(0)"><div class="player-circle" id="slot-0">⚽</div><div class="player-name" id="name-0">Atacante</div><div class="player-pos">AT</div></div>
+        <div class="player-slot" onclick="openForm(1)"><div class="player-circle" id="slot-1">⚽</div><div class="player-name" id="name-1">Atacante</div><div class="player-pos">AT</div></div>
+      </div>
+      <div class="row">
+        <div class="player-slot" onclick="openForm(2)"><div class="player-circle" id="slot-2">🎯</div><div class="player-name" id="name-2">Meia</div><div class="player-pos">ME</div></div>
+        <div class="player-slot" onclick="openForm(3)"><div class="player-circle" id="slot-3">🎯</div><div class="player-name" id="name-3">Meia</div><div class="player-pos">ME</div></div>
+        <div class="player-slot" onclick="openForm(4)"><div class="player-circle" id="slot-4">🎯</div><div class="player-name" id="name-4">Meia</div><div class="player-pos">ME</div></div>
+        <div class="player-slot" onclick="openForm(5)"><div class="player-circle" id="slot-5">🎯</div><div class="player-name" id="name-5">Meia</div><div class="player-pos">ME</div></div>
+      </div>
+      <div class="row">
+        <div class="player-slot" onclick="openForm(6)"><div class="player-circle" id="slot-6">🛡️</div><div class="player-name" id="name-6">Lat D</div><div class="player-pos">LD</div></div>
+        <div class="player-slot" onclick="openForm(7)"><div class="player-circle" id="slot-7">🛡️</div><div class="player-name" id="name-7">Zagueiro</div><div class="player-pos">ZG</div></div>
+        <div class="player-slot" onclick="openForm(8)"><div class="player-circle" id="slot-8">🛡️</div><div class="player-name" id="name-8">Zagueiro</div><div class="player-pos">ZG</div></div>
+        <div class="player-slot" onclick="openForm(9)"><div class="player-circle" id="slot-9">🛡️</div><div class="player-name" id="name-9">Lat E</div><div class="player-pos">LE</div></div>
+      </div>
+      <div class="row">
+        <div class="player-slot" onclick="openForm(10)"><div class="player-circle" id="slot-10">🧤</div><div class="player-name" id="name-10">Goleiro</div><div class="player-pos">GL</div></div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:11px;color:#666;text-align:center;margin-top:10px;">Toque em uma posição para escalar um amigo</p>
+</div>
+
+<!-- MODAL FORM -->
+<div class="modal" id="modal-form">
+  <div class="modal-content">
+    <div style="text-align:center;margin-bottom:16px;">
+      <div class="pos-badge" id="form-pos-badge">Atacante</div>
+      <h2 style="font-size:16px;font-weight:700;">Dados do Jogador</h2>
+    </div>
+    <div class="form-group"><label>Nome completo</label><input type="text" id="input-name" placeholder="Ex: Neymar da Silva" maxlength="30"></div>
+    <div class="form-group"><label>Telefone / WhatsApp</label><input type="tel" id="input-phone" placeholder="(11) 99999-9999" maxlength="20"></div>
+    <div class="form-group">
+      <label>Foto do jogador</label>
+      <div class="photo-area" id="photo-area" onclick="document.getElementById('file-input').click()">
+        <p style="color:#777;font-size:13px;">📸 Toque para adicionar foto</p>
+        <span style="color:#c9a227;font-size:11px;">JPG ou PNG</span>
+      </div>
+      <input type="file" id="file-input" accept="image/*" onchange="handlePhoto(event)">
+    </div>
+    <button class="btn-confirm" onclick="confirmPlayer()">✅ Escalar jogador</button>
+    <button class="btn-back" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- FIGURINHA -->
+<div id="screen-sticker" class="screen">
+  <p style="font-size:12px;color:#888;margin-bottom:14px;text-align:center;">⭐ Figurinha gerada!</p>
+  <div class="sticker-wrap">
+    <div class="panini-card" id="panini-sticker">
+      <div class="panini-bg"><div class="blob1"></div><div class="blob2"></div><div class="blob3"></div></div>
+      <div class="panini-yellow-bar"></div>
+      <div class="panini-fifa"><span class="fifa-icon">⚽</span><span class="fifa-text">FIFA</span><span style="display:block;font-size:7px;color:rgba(255,255,255,0.8);font-weight:700;">CEF</span></div>
+      <div class="panini-flag">🇧🇷</div>
+      <div class="panini-deco-letters"><span>B</span><span>R</span><span>A</span></div>
+      <div class="panini-photo" id="panini-photo-wrap"><div class="panini-no-photo" id="panini-no-photo">⚽</div></div>
+      <div class="panini-name-bar"><div class="player-first" id="panini-player-name">JOGADOR</div></div>
+      <div class="panini-bottom"><span class="panini-club" id="panini-club">ESCOLTA FC (BRA)</span><div class="panini-logo-box"><span>PANINI</span></div></div>
+    </div>
+  </div>
+  <div class="lucky-box" id="lucky-partial" style="display:none;">
+    <div class="lucky-label">🍀 Progresso</div>
+    <div class="lucky-number" id="lucky-partial-num">0/11</div>
+    <div class="lucky-sub">Complete o time para seu número da sorte!</div>
+  </div>
+  <button class="btn-next" onclick="backToField()">⚽ Continuar escalando</button>
+  <button class="btn-field" onclick="showField()">Ver campo</button>
+</div>
+
+<!-- TIME COMPLETO -->
+<div id="screen-complete" class="screen">
+  <div class="complete-title">🏆 Time Completo!</div>
+  <div class="complete-sub">Seu álbum está cheio. Parabéns!</div>
+  <div class="team-grid" id="team-grid"></div>
+  <div class="mega-lucky">
+    <div class="mega-lucky-label">🍀 Número da Sorte</div>
+    <div class="mega-lucky-number" id="mega-lucky-num">-----</div>
+    <div class="mega-lucky-sub">Guarde este número — você está no sorteio!</div>
+  </div>
+  <div style="background:#161616;border:1px solid #222;border-radius:10px;padding:12px;margin-bottom:14px;font-size:11px;color:#888;line-height:1.8;">
+    <strong style="color:#c9a227;">📋 Próximos passos</strong><br>
+    Seus amigos serão contatados pela equipe <strong style="color:#fff;">Escolta Proteção Veicular</strong> para conhecer nossos planos exclusivos. O sorteio será realizado em data a confirmar.
+  </div>
+  <button class="share-btn" onclick="alert('Compartilhamento em breve! 🚀')">📤 Compartilhar meu time</button>
+</div>
+
+<script>
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbzYzcyh-nwi2iAy3F6UF2Q4Bd04UF_oMtdJMBaKHCc8GyHBmBBwmesLVziXqtmkU80M/exec';
+const positions=['Atacante','Atacante','Meia','Meia','Meia','Meia','Lateral D.','Zagueiro','Zagueiro','Lateral E.','Goleiro'];
+const posIcons=['⚽','⚽','🎯','🎯','🎯','🎯','🛡️','🛡️','🛡️','🛡️','🧤'];
+let players=Array(11).fill(null),currentSlot=-1,currentPhoto=null,luckyNumber=null,nomeAssociado='';
+
+function showField(){
+  const inp=document.getElementById('input-associado');
+  if(inp&&inp.value.trim()) nomeAssociado=inp.value.trim();
+  setScreen('screen-field');updateField();
+}
+function setScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+
+function updateField(){
+  const filled=players.filter(Boolean).length;
+  document.getElementById('progress-fill').style.width=(filled/11*100)+'%';
+  document.getElementById('progress-count').textContent=filled;
+  players.forEach((p,i)=>{
+    const slot=document.getElementById('slot-'+i);
+    const nameEl=document.getElementById('name-'+i);
+    if(p){slot.classList.add('filled');slot.innerHTML=p.photo?'<img src="'+p.photo+'">':posIcons[i];nameEl.textContent=p.name.split(' ')[0].toUpperCase();}
+  });
+}
+
+function openForm(slot){
+  currentSlot=slot;currentPhoto=players[slot]?.photo||null;
+  document.getElementById('input-name').value=players[slot]?.name||'';
+  document.getElementById('input-phone').value=players[slot]?.phone||'';
+  document.getElementById('form-pos-badge').textContent=positions[slot];
+  const pa=document.getElementById('photo-area');
+  if(currentPhoto){pa.classList.add('has-photo');pa.innerHTML='<img src="'+currentPhoto+'" class="photo-preview-thumb"><span style="color:#c9a227;font-size:11px;">Toque para trocar</span>';}
+  else{pa.classList.remove('has-photo');pa.innerHTML='<p style="color:#777;font-size:13px;">📸 Toque para adicionar foto</p><span style="color:#c9a227;font-size:11px;">JPG ou PNG</span>';}
+  document.getElementById('modal-form').classList.add('open');
+}
+
+function closeModal(){document.getElementById('modal-form').classList.remove('open');currentPhoto=null;}
+
+function handlePhoto(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    currentPhoto=ev.target.result;
+    const pa=document.getElementById('photo-area');
+    pa.classList.add('has-photo');
+    pa.innerHTML='<img src="'+currentPhoto+'" class="photo-preview-thumb"><span style="color:#c9a227;font-size:11px;">✅ Foto carregada</span>';
+  };
+  reader.readAsDataURL(file);
+}
+
+function confirmPlayer(){
+  const name=document.getElementById('input-name').value.trim();
+  const phone=document.getElementById('input-phone').value.trim();
+  if(!name){alert('Informe o nome do jogador.');return;}
+  players[currentSlot]={name,phone,photo:currentPhoto,pos:positions[currentSlot]};
+  const filled=players.filter(Boolean).length;
+  if(filled===11&&!luckyNumber) luckyNumber=Math.floor(10000+Math.random()*90000);
+  fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({associado:nomeAssociado,nome:name,telefone:phone||'Não informado',posicao:positions[currentSlot],numeroDaSorte:filled===11?luckyNumber:'-'})}).catch(()=>{});
+  closeModal();
+  showSticker(currentSlot);
+}
+
+function showSticker(slot){
+  const p=players[slot];
+  document.getElementById('panini-player-name').textContent=p.name.trim().split(' ')[0].toUpperCase();
+  document.getElementById('panini-club').textContent='ESCOLTA FC (BRA)';
+  const photoWrap=document.getElementById('panini-photo-wrap');
+  if(p.photo){photoWrap.innerHTML='<img src="'+p.photo+'" style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block;position:relative;z-index:5;">';}
+  else{photoWrap.innerHTML='<div class="panini-no-photo">'+posIcons[slot]+'</div>';}
+  const filled=players.filter(Boolean).length;
+  const lp=document.getElementById('lucky-partial');
+  if(filled===11){lp.style.display='none';setScreen('screen-sticker');setTimeout(()=>showComplete(),2200);}
+  else{lp.style.display='block';document.getElementById('lucky-partial-num').textContent=filled+'/11';setScreen('screen-sticker');}
+}
+
+function backToField(){if(players.filter(Boolean).length===11){showComplete();}else{showField();}}
+
+function showComplete(){
+  const grid=document.getElementById('team-grid');
+  grid.innerHTML='';
+  players.forEach((p,i)=>{
+    const d=document.createElement('div');d.className='mini-panini';
+    const firstName=p?p.name.trim().split(' ')[0].toUpperCase():'?';
+    d.innerHTML=`<div class="mini-panini-photo"><div class="mini-blob"></div>${p&&p.photo?'<img src="'+p.photo+'" style="position:relative;z-index:2;">':'<div class="np" style="position:relative;z-index:2;">'+(p?posIcons[i]:'❓')+'</div>'}</div><div class="mini-name-bar"><span>${firstName}</span></div><div class="mini-bottom"><span>${positions[i]}</span><span class="pr">CEF</span></div>`;
+    grid.appendChild(d);
+  });
+  document.getElementById('mega-lucky-num').textContent=luckyNumber||'-----';
+  setScreen('screen-complete');
+}
+
+setScreen('screen-intro');
+</script>
+</body>
+</html>
